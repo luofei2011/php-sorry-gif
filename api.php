@@ -4,9 +4,9 @@ require_once "./config.php";
 $OS_TYPE=DIRECTORY_SEPARATOR=='\\'?'windows':'linux';
 
 /**
-  * 解决 ffmpeg 对 windows 系统的绝对路径“不友好问题”。
-  * 好像解决的方法有点笨...
-*/
+ * 解决 ffmpeg 对 windows 系统的绝对路径“不友好问题”。
+ * 好像解决的方法有点笨...
+ */
 if($OS_TYPE == 'windows') {
   define('ROOT','.');
 }else{
@@ -16,12 +16,25 @@ if($OS_TYPE == 'windows') {
 $type = isset($_POST['type']) ? $_POST['type'] : false;
 $data = isset($_POST['data']) ? $_POST['data'] : false;
 $small = isset($_POST['small']) ? $_POST['small'] : false;
-$request_time = time(true);
+
+# 唯一文件名
+$filename = $type . '_' . md5(json_encode($data));
 
 if($type && $data && $small){
   $TEMP_ROOT = ROOT.'/templates/'.$type.'/';
   $TEMP_ASS = $TEMP_ROOT.'template.ass';
-  $CACHE_ASS_PATH = ROOT.'/cache/'.$type.'_'.$request_time.'.ass';
+  $CACHE_ASS_PATH = ROOT . '/cache/' . $filename . '.ass';
+
+  # 输出gif文件名称
+  $outFile = './cache/' . $filename . '.gif';
+  if (file_exists($outFile)) {
+    exit(json_encode([
+      'code' => 200,
+      'type' => $type,
+      'msg' => '命中缓存',
+      'path' => $outFile,
+    ]));
+  }
 
   if($small == 'true' || DEFAULT_CREATE_SMALL_GIF === true){
     $TEMP_VIDEO = $TEMP_ROOT.'template-small.mp4';
@@ -32,9 +45,9 @@ if($type && $data && $small){
     $TEMP_VIDEO = $TEMP_ROOT.'template.mp4';
   }
 
-/**
-  * 判断根目录是否存在 cache 目录，不存在则创建
-*/
+  /**
+   * 判断根目录是否存在 cache 目录，不存在则创建
+   */
   if(!file_exists(ROOT.'/cache')){
     if(mkdir(ROOT.'/cache',0777) === false){
       $result['code'] = 500;
@@ -55,7 +68,7 @@ if($type && $data && $small){
     fwrite($create_temporary_ass, $change_ass) or die('{"code":502,"msg":"临时字幕文件已创建，但写入失败，请网站管理员检查 `cache` 目录是否具有读写权限或用户组设否设置正确！"}');
     fclose($create_temporary_ass);
 
-    $out_put_file=ROOT.'/cache/'.$request_time.'.gif';
+    $out_put_file = ROOT . '/cache/' . $filename . '.gif';
     $command = 'ffmpeg -y -i '.$TEMP_VIDEO.' -vf "ass='.$CACHE_ASS_PATH.'" '.$out_put_file;
     system($command);
     unlink($CACHE_ASS_PATH);//删除临时生成的字幕文件
@@ -69,14 +82,14 @@ if($type && $data && $small){
       $r = upload_to_sogou($out_put_file);
       if($r === false) {
         //如果上传失败，则返回本地路径
-        $result['path'] = './cache/'.$request_time.'.gif';
+        $result['path'] = $outFile;
         $result['upload_status'] = 'fail';
       }else{
         $result['path'] = 'https://'.$r['host'][rand(0,4)].$r['path'];
         $result['upload_status'] = 'success';
       }
     }else{
-      $result['path'] = './cache/'.$request_time.'.gif';
+      $result['path'] = $outFile;
     }
 
   }else{
