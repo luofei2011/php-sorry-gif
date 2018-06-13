@@ -17,6 +17,16 @@ $type = isset($_POST['type']) ? $_POST['type'] : false;
 $data = isset($_POST['data']) ? $_POST['data'] : false;
 $small = isset($_POST['small']) ? $_POST['small'] : false;
 
+header("Content-Type: application/json; charset=UTF-8");
+
+# 避免SSRF攻击
+if (!ctype_alnum($type)) {
+  die(json_encode([
+    'code' => 400,
+    'msg' => 'type 参数格式有误'
+  ]));
+}
+
 # 唯一文件名
 $filename = $type . '_' . md5(json_encode($data));
 
